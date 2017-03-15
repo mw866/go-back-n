@@ -67,23 +67,24 @@ int gbn_socket(int domain, int type, int protocol){
 	
 	/* TODO: Your code here. */
     int status;
+    int socket_descriptor;
     struct addrinfo hints;
-    struct addrinfo *servinfo; // will point to the results
+    struct addrinfo *res; // will point to the results
     memset(&hints, 0, sizeof hints); // make sure the struct is empty
     hints.ai_family = AF_UNSPEC; // don't care IPv4 or IPv6
 
     hints.ai_socktype = SOCK_STREAM; // TCP stream sockets
     hints.ai_flags = AI_PASSIVE; // fill in my IP for me
-    if ((status = getaddrinfo("localhost", "3490", &hints, &servinfo)) != 0) {
+    if ((status = getaddrinfo("localhost", "3490", &hints, &res)) != 0) {
         fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
         exit(1);
     }
     printf("Line 81");
-    // servinfo now points to a linked list of 1 or more struct addrinfos
-
-
-    // ... do everything until you don't need servinfo anymore ....
-    freeaddrinfo(servinfo); // free the linked-list
+    // res now points to a linked list of 1 or more struct addrinfos
+    socket_descriptor = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    printf("socket_descriptor: %d",socket_descriptor);
+    // ... do everything until you don't need res anymore ....
+    freeaddrinfo(res); // free the linked-list
 	return(-1);
 }
 
