@@ -1,3 +1,4 @@
+#include <arpa/inet.h>
 #include "gbn.h"
 
 
@@ -56,7 +57,8 @@ int gbn_listen(int sockfd, int backlog){
 int gbn_bind(int sockfd, const struct sockaddr *server, socklen_t socklen){
 
 	/* TODO: Your code here. */
-
+    bind(sockfd, server, socklen);
+    printf("gbn_bind success \n");
 	return(-1);
 }	
 
@@ -65,7 +67,7 @@ int gbn_socket(int domain, int type, int protocol){
 	/*----- Randomizing the seed. This is used by the rand() function -----*/
 	srand((unsigned)time(0));
 	
-	/* TODO: Your code here. */
+	/* Completed: Your code here. */
     int status;
     int socket_descriptor;
     struct addrinfo hints;
@@ -77,15 +79,15 @@ int gbn_socket(int domain, int type, int protocol){
     hints.ai_flags = AI_PASSIVE; // fill in my IP for me
     if ((status = getaddrinfo("localhost", "3490", &hints, &res)) != 0) {
         fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
-        exit(1);
+//        exit(1);
+        return(-1);
     }
-    printf("Line 81");
     // res now points to a linked list of 1 or more struct addrinfos
     socket_descriptor = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    printf("socket_descriptor: %d",socket_descriptor);
+    printf("socket_descriptor: %d\n",socket_descriptor);
     // ... do everything until you don't need res anymore ....
     freeaddrinfo(res); // free the linked-list
-	return(-1);
+	return(socket_descriptor);
 }
 
 int gbn_accept(int sockfd, struct sockaddr *client, socklen_t *socklen){

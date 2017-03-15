@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
 
 	/*----- Binding to the designated port -----*/
 	if (gbn_bind(sockfd, (struct sockaddr *)&server, sizeof(struct sockaddr_in)) == -1){
-		perror("gbn_bind");
+        perror("gbn_bind");
 		exit(-1);
 	}
 	
