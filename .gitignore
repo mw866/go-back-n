@@ -1,6 +1,8 @@
 # CLion
 .idea/
 cmake-build-debug/
+receiver
+sender
 
 # Object files
 *.o

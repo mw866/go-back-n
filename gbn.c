@@ -57,6 +57,7 @@ int gbn_listen(int sockfd, int backlog){
 int gbn_bind(int sockfd, const struct sockaddr *server, socklen_t socklen){
 
 	/* TODO: Your code here. */
+	printf("Binding...");
     return bind(sockfd, server, socklen);
 }	
 
@@ -75,7 +76,7 @@ int gbn_socket(int domain, int type, int protocol){
 
     hints.ai_socktype = SOCK_STREAM; // TCP stream sockets
     hints.ai_flags = AI_PASSIVE; // fill in my IP for me
-    if ((status = getaddrinfo("localhost", "3490", &hints, &res)) != 0) {
+    if ((status = getaddrinfo("127.0.0.1", "9999", &hints, &res)) != 0) {
         fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
 //        exit(1);
         return(-1);
