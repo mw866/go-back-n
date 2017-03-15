@@ -42,9 +42,9 @@ int gbn_close(int sockfd){
 
 int gbn_connect(int sockfd, const struct sockaddr *server, socklen_t socklen){
 
-	/* TODO: Your code here. */
+	/* Done: Your code here. */
 
-	return(-1);
+	return connect(sockfd, server, socklen);
 }
 
 int gbn_listen(int sockfd, int backlog){
@@ -56,7 +56,7 @@ int gbn_listen(int sockfd, int backlog){
 
 int gbn_bind(int sockfd, const struct sockaddr *server, socklen_t socklen){
 
-	/* TODO: Your code here. */
+	/* Done: Your code here. */
 	printf("Binding...");
     return bind(sockfd, server, socklen);
 }	
@@ -66,7 +66,7 @@ int gbn_socket(int domain, int type, int protocol){
 	/*----- Randomizing the seed. This is used by the rand() function -----*/
 	srand((unsigned)time(0));
 	
-	/* Completed: Your code here. */
+	/* Done: Your code here. */
     int status;
     int socket_descriptor;
     struct addrinfo hints;
