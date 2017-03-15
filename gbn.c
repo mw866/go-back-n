@@ -1,5 +1,6 @@
 #include "gbn.h"
 
+
 uint16_t checksum(uint16_t *buf, int nwords)
 {
 	uint32_t sum;
@@ -65,7 +66,24 @@ int gbn_socket(int domain, int type, int protocol){
 	srand((unsigned)time(0));
 	
 	/* TODO: Your code here. */
+    int status;
+    struct addrinfo hints;
+    struct addrinfo *servinfo; // will point to the results
+    memset(&hints, 0, sizeof hints); // make sure the struct is empty
+    hints.ai_family = AF_UNSPEC; // don't care IPv4 or IPv6
 
+    hints.ai_socktype = SOCK_STREAM; // TCP stream sockets
+    hints.ai_flags = AI_PASSIVE; // fill in my IP for me
+    if ((status = getaddrinfo("localhost", "3490", &hints, &servinfo)) != 0) {
+        fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
+        exit(1);
+    }
+    printf("Line 81");
+    // servinfo now points to a linked list of 1 or more struct addrinfos
+
+
+    // ... do everything until you don't need servinfo anymore ....
+    freeaddrinfo(servinfo); // free the linked-list
 	return(-1);
 }
 
