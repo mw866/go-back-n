@@ -23,20 +23,23 @@ ssize_t gbn_send(int sockfd, const void *buf, size_t len, int flags){
 	 *       about getting more than N * DATALEN.
 	 */
 
-	return(-1);
+	int bytes_sent = send(sockfd, buf, len, 0); // TODO: To change to UDP sendto() after testing
+	printf("Sent %d  bytes at sockfd %d \n", bytes_sent, sockfd);
+	return bytes_sent;
 }
 
 ssize_t gbn_recv(int sockfd, void *buf, size_t len, int flags){
 
 	/* TODO: Your code here. */
-
-	return(-1);
+	int bytes_recved = recv(sockfd, buf, len, 0); // TODO: To change to UDP recvfrom() after testing
+	printf("Received %d  bytes at sockfd %d \n", bytes_recved, sockfd);
+	return bytes_recved;
 }
 
 int gbn_close(int sockfd){
 
 	/* Done: Your code here. */
-	printf("Closing sockfd: %d...\n",sockfd);
+	printf("Closing sockfd: %d...\n", sockfd);
 	return close(sockfd);
 }
 
