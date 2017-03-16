@@ -35,29 +35,29 @@ ssize_t gbn_recv(int sockfd, void *buf, size_t len, int flags){
 
 int gbn_close(int sockfd){
 
-	/* TODO: Your code here. */
-
-	return(-1);
+	/* Done: Your code here. */
+	printf("Closing sockfd: %d...\n",sockfd);
+	return close(sockfd);
 }
 
 int gbn_connect(int sockfd, const struct sockaddr *server, socklen_t socklen){
 
 	/* Done: Your code here. */
-
+	printf("Connecting...\n");
 	return connect(sockfd, server, socklen);
 }
 
 int gbn_listen(int sockfd, int backlog){
 
-	/* TODO: Your code here. */
-
-	return(-1);
+	/* Done: Your code here. */
+	printf("Listening...\n");
+	return listen(sockfd, backlog);
 }
 
 int gbn_bind(int sockfd, const struct sockaddr *server, socklen_t socklen){
 
 	/* Done: Your code here. */
-	printf("Binding...");
+	printf("Binding sockfd: %d...\n", sockfd);
     return bind(sockfd, server, socklen);
 }	
 
@@ -68,7 +68,7 @@ int gbn_socket(int domain, int type, int protocol){
 	
 	/* Done: Your code here. */
     int status;
-    int socket_descriptor;
+    int sockfd;
     struct addrinfo hints;
     struct addrinfo *res; // will point to the results
     memset(&hints, 0, sizeof hints); // make sure the struct is empty
@@ -76,24 +76,27 @@ int gbn_socket(int domain, int type, int protocol){
 
     hints.ai_socktype = SOCK_STREAM; // TCP stream sockets
     hints.ai_flags = AI_PASSIVE; // fill in my IP for me
+
+//	TODO: Take in arguments instead of hardcoded values
     if ((status = getaddrinfo("127.0.0.1", "9999", &hints, &res)) != 0) {
         fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
-//        exit(1);
+		perror("getaddrinfo");
         return(-1);
     }
     // res now points to a linked list of 1 or more struct addrinfos
-    socket_descriptor = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    printf("socket_descriptor: %d\n",socket_descriptor);
-    // ... do everything until you don't need res anymore ....
-    freeaddrinfo(res); // free the linked-list
-	return(socket_descriptor);
+	sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+	freeaddrinfo(res); // free the linked-list
+	printf("Creating socket.... socket_descriptor: %d\n", sockfd);
+	return sockfd;
 }
 
 int gbn_accept(int sockfd, struct sockaddr *client, socklen_t *socklen){
 
-	/* TODO: Your code here. */
+	/* Done: Your code here. */
 
-	return(-1);
+	int new_sockfdfd = accept(sockfd, client, socklen);
+	printf("Accepted sockfd:%d created w_fd: %d\n", sockfd, new_sockfdfd);
+	return new_sockfdfd;
 }
 
 ssize_t maybe_sendto(int  s, const void *buf, size_t len, int flags, \
