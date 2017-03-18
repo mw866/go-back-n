@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include "gbn.h"
 
+state_t s;
 
 uint16_t checksum(uint16_t *buf, int nwords)
 {
@@ -70,25 +71,15 @@ int gbn_socket(int domain, int type, int protocol){
 	srand((unsigned)time(0));
 	
 	/* Done: Your code here. */
-    int status;
-    int sockfd;
-    struct addrinfo hints;
-    struct addrinfo *res; // will point to the results
-    memset(&hints, 0, sizeof hints); // make sure the struct is empty
-    hints.ai_family = AF_UNSPEC; // don't care IPv4 or IPv6
 
-    hints.ai_socktype = SOCK_STREAM; // TCP stream sockets
-    hints.ai_flags = AI_PASSIVE; // fill in my IP for me
+    s = *(state_t*)malloc(sizeof(s));
+    s.seq_number = (uint8_t)rand();
+    s.fin = false;
+    s.fin_ack = false;
 
-//	TODO: Take in arguments instead of hardcoded values
-    if ((status = getaddrinfo("127.0.0.1", "9999", &hints, &res)) != 0) {
-        fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
-		perror("getaddrinfo");
-        return(-1);
-    }
-    // res now points to a linked list of 1 or more struct addrinfos
-	sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-	freeaddrinfo(res); // free the linked-list
+    int sockfd = socket(domain, type, protocol);
+
+    // TODO: To implement timeout
 	printf("Creating socket.... socket_descriptor: %d\n", sockfd);
 	return sockfd;
 }

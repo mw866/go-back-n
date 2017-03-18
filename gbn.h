@@ -15,6 +15,8 @@
 #include<netdb.h>
 #include<time.h>
 
+#include <stdbool.h>
+
 /*----- Error variables -----*/
 extern int h_errno;
 extern int errno;
@@ -46,7 +48,13 @@ typedef struct {
 typedef struct state_t{
 
 	/* TODO: Your state information could be encoded here. */
-
+    int state;
+    uint8_t seq_number;
+    struct sockaddr address;
+    socklen_t sck_len;
+    uint8_t window_size;
+    bool fin;
+    bool fin_ack;
 } state_t;
 
 enum {

@@ -1,8 +1,10 @@
 # CLion
+receiver.o
+receiver
+sender.o
+sender
 .idea/
 cmake-build-debug/
-receiver
-sender
 
 # Object files
 *.o
@@ -37,3 +39,4 @@ sender
 # Debug files
 *.dSYM/
 *.su
+
