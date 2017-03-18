@@ -6,3 +6,7 @@
 ## References
 
 * https://github.com/JordanMontgomery/go-back-n
+
+* State machine:
+    * Open: http://www.tcpipguide.com/free/t_TCPConnectionEstablishmentProcessTheThreeWayHandsh-3.htm
+    * Terminate: http://www.tcpipguide.com/free/t_TCPConnectionEstablishmentProcessTheThreeWayHandsh-4.htm
