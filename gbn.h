@@ -49,7 +49,7 @@ typedef struct state_t{
 
 	/* TODO: Your state information could be encoded here. */
     int state;
-    uint8_t seq_number;
+    uint8_t seqnum;
     struct sockaddr address;
     socklen_t sck_len;
     uint8_t window_size;
@@ -81,7 +81,9 @@ ssize_t gbn_recv(int sockfd, void *buf, size_t len, int flags);
 ssize_t  maybe_sendto(int  s, const void *buf, size_t len, int flags, \
                       const struct sockaddr *to, socklen_t tolen);
 
-uint16_t checksum(uint16_t *buf, int nwords);
+//uint16_t checksum(uint16_t *buf, int nwords);
+uint16_t checksum(gbnhdr *packet);
+
 
 
 #endif

@@ -3,10 +3,36 @@
 
 state_t s;
 
-uint16_t checksum(uint16_t *buf, int nwords)
-{
-	uint32_t sum;
+//uint16_t checksum(uint16_t *buf, int nwords)
+//{
+//	uint32_t sum;
+//
+//	for (sum = 0; nwords > 0; nwords--)
+//		sum += *buf++;
+//	sum = (sum >> 16) + (sum & 0xffff);
+//	sum += (sum >> 16);
+//	return ~sum;
+//}
 
+
+uint16_t checksum(gbnhdr *packet)
+{
+    int nwords = (sizeof(packet->type) + sizeof(packet->seqnum) + sizeof(packet->data))/sizeof(uint16_t);
+    uint16_t buf[nwords];
+    buf[0] = (uint16_t)packet->seqnum + ((uint16_t)packet->type << 8);
+
+	for (int byte_index = 1; byte_index <= sizeof(packet->data); byte_index++){
+		int word_index = (byte_index + 1) / 2;
+		if (byte_index % 2 == 1){
+			buf[word_index] = packet->data[byte_index-1];
+		} else {
+			buf[word_index] = buf[word_index] << 8;
+			buf[word_index] += packet -> data[byte_index - 1];
+		}
+
+	}
+
+	uint32_t sum;
 	for (sum = 0; nwords > 0; nwords--)
 		sum += *buf++;
 	sum = (sum >> 16) + (sum & 0xffff);
@@ -47,8 +73,20 @@ int gbn_close(int sockfd){
 int gbn_connect(int sockfd, const struct sockaddr *server, socklen_t socklen){
 
 	/* Done: Your code here. */
-	printf("Connecting...\n");
-	return connect(sockfd, server, socklen);
+    s.state  = SYN_SENT;
+	printf("Connecting via 3-way handshake...\n");
+
+    // SYN_packet, SYN_ACK_packet, and ACK_packet are used in the 3-way handshake
+    gbnhdr *SYN_packet = malloc(sizeof(*SYN_packet));
+    SYN_packet->type = SYN;
+    SYN_packet->seqnum = s.seqnum;
+    memset(SYN_packet->data, '\0', sizeof(SYN_packet->data));
+    SYN_packet->checksum = checksum(,SYN_packet); // TODO: to check if it is necessary to implement packet_checksum()
+
+    int max_handshake;
+    while(){
+
+    }
 }
 
 int gbn_listen(int sockfd, int backlog){
@@ -73,7 +111,7 @@ int gbn_socket(int domain, int type, int protocol){
 	/* Done: Your code here. */
 
     s = *(state_t*)malloc(sizeof(s));
-    s.seq_number = (uint8_t)rand();
+    s.seqnum = (uint8_t)rand();
     s.fin = false;
     s.fin_ack = false;
 
