@@ -51,24 +51,26 @@ ssize_t gbn_send(int sockfd, const void *buf, size_t len, int flags){
 	 *       up into multiple packets - you don't have to worry
 	 *       about getting more than N * DATALEN.
 	 */
-
+	printf("FUNCTION: gbn_send() %d...\n", sockfd);
 	int bytes_sent = send(sockfd, buf, len, 0); // TODO: To change to UDP sendto() after testing
-	printf("Sent %d  bytes at sockfd %d \n", bytes_sent, sockfd);
+//	printf("Sent %d  bytes at sockfd %d \n", bytes_sent, sockfd);
 	return bytes_sent;
 }
 
 ssize_t gbn_recv(int sockfd, void *buf, size_t len, int flags){
 
 	/* TODO: Your code here. */
+	printf("FUNCTION: gbn_recv() %d...\n",sockfd);
 	int bytes_recved = recv(sockfd, buf, len, 0); // TODO: To change to UDP recvfrom() after testing
-	printf("Received %d  bytes at sockfd %d \n", bytes_recved, sockfd);
+//	printf("Received %d  bytes at sockfd %d \n", bytes_recved, sockfd);
 	return bytes_recved;
 }
 
 int gbn_close(int sockfd){
 
 	/* TODO: Your code here. */
-	printf("Closing sockfd: %d...\n", sockfd);
+	printf("FUNCTION: gbn_close() %d...\n", sockfd);
+
 	return close(sockfd);
 }
 
@@ -76,7 +78,7 @@ int gbn_connect(int sockfd, const struct sockaddr *server, socklen_t socklen){
 
 	/* Done: Your code here. */
     s.state  = SYN_SENT;
-	printf("Connecting via 3-way handshake...\n");
+	printf("FUNCTION: gbn_connect()  %d...\n", sockfd);
 
     // SYN_packet, SYN_ACK_packet, and ACK_packet are used in the 3-way handshake
 	//SYN_packet
@@ -107,35 +109,33 @@ int gbn_connect(int sockfd, const struct sockaddr *server, socklen_t socklen){
     while(s.state != CLOSED && s.state != RESET && s.state != ESTABLISHED){
 		switch(s.state){
 			case SYN_SENT:
-				printf("State: SYN_SENT\n");
+				printf("STATE: SYN_SENT\n");
 
 				//sending
 				if(max_handshake > 4){
-					printf("tried 4 times, closing current connection");
+					printf("ERROR: Reached max handshakes. Closing connection...\n");
 //					error = 0;
 					s.state = CLOSED;
 					break;
-				}else if(sendto(sockfd, SYN_ACK_packet, sizeof(*SYN_ACK_packet), 0, server, socklen) == -1){
-					printf("cannot send SYN!");
+				}else if(sendto(sockfd, SYN_packet, sizeof(*SYN_packet), 0, server, socklen) == -1){
+					printf("Error: Unable to send SYNC");
 					s.state = CLOSED;
 					break;
 				}
 
-				printf("SYN was sent, waiting for SYNACK..\n");
-				printf("%d -- %d -- %d -- &d\n", SYN_ACK_packet->type, SYN_ACK_packet->seqnum, SYN_ACK_packet->checksum, checksum(SYN_ACK_packet));
+				printf("SUCCESS: Sent SYN.\n");
 
 				//timeout setting for SYN
 				alarm(TIMEOUT);
 				max_handshake++;
 
 				//receiving
-				if(recvfrom(sockfd, SYN_ACK_packet, sizeof(*SYN_ACK_packet), 0, &from, &from_len) == 0){
-					printf("getting...");
-					printf("%d -- %d -- %d -- %d --\n", SYN_ACK_packet->type, SYN_ACK_packet->seqnum, SYN_ACK_packet->checksum, checksum(SYN_ACK_packet));
+				if(recvfrom(sockfd, SYN_ACK_packet, sizeof(*SYN_ACK_packet), 0, &from, &from_len) != -1 ){
+					printf("SUCCESS: Received SYNACK...\n");
+					printf("type: %d\tseqnum:%dchecksum(received)%dchecksum(calculated)%d\n", SYN_ACK_packet->type, SYN_ACK_packet->seqnum, SYN_ACK_packet->checksum, checksum(SYN_ACK_packet));
 
 					if(SYN_ACK_packet->type == SYNACK && SYN_ACK_packet ->checksum == checksum(SYN_ACK_packet)){
-						printf("connection established!\n");
-						printf("received SYNACK, Sending ACK!\n");
+						printf("SUCCESS: Received valid SYN_ACK!\n");
 
 						//update state, seqnum ...
 						s.state = ESTABLISHED;
@@ -146,11 +146,13 @@ int gbn_connect(int sockfd, const struct sockaddr *server, socklen_t socklen){
 						ACK_packet->checksum = checksum(ACK_packet);
 						//can not send ACK
 						if(sendto(sockfd, ACK_packet, sizeof(*ACK_packet), 0, server, socklen) == -1){
+							printf("ERROR: Unable to send ACK\n");
 							s.state = CLOSED;
 						}
 					}else{
 						//try again if time out
 						if(errno != EINTR){
+							printf("ERROR: Timeout sending ACK\n");
 							s.state = CLOSED;
 							break;
 						}
@@ -164,11 +166,12 @@ int gbn_connect(int sockfd, const struct sockaddr *server, socklen_t socklen){
 		}
     }
 
-	printf("finishing connection \n");
+
 	free(SYN_packet);
 	free(SYN_ACK_packet);
 	free(ACK_packet);
 	if(s.state == ESTABLISHED){
+		printf("STATE: ESTABLISHED \n");
 		return 0;
 	}else {
 		return -1;
@@ -178,7 +181,7 @@ int gbn_connect(int sockfd, const struct sockaddr *server, socklen_t socklen){
 int gbn_listen(int sockfd, int backlog){
 
 	/* Done: Your code here. */
-	printf("Listening...\n");
+	printf("FUNCTION: gbn_listen() %d...\n", sockfd);
 //	return listen(sockfd, backlog);
 	return 0;
 }
@@ -186,7 +189,7 @@ int gbn_listen(int sockfd, int backlog){
 int gbn_bind(int sockfd, const struct sockaddr *server, socklen_t socklen){
 
 	/* Done: Your code here. */
-	printf("Binding sockfd: %d...\n", sockfd);
+	printf("FUNCTION: gbn_bind() %d...\n", sockfd);
     return bind(sockfd, server, socklen);
 }	
 
@@ -196,6 +199,7 @@ int gbn_socket(int domain, int type, int protocol){
 	srand((unsigned)time(0));
 	
 	/* Done: Your code here. */
+	printf("FUNCTION: gbn_socket()... ");
 
     s = *(state_t*)malloc(sizeof(s));
     s.seqnum = (uint8_t)rand();
@@ -205,7 +209,7 @@ int gbn_socket(int domain, int type, int protocol){
     int sockfd = socket(domain, type, protocol);
 
     // TODO: To implement timeout
-	printf("Creat socket.... socket_descriptor: %d\n", sockfd);
+	printf("Create socket.... socket_descriptor: %d\n", sockfd);
 	return sockfd;
 }
 
@@ -214,7 +218,7 @@ int gbn_accept(int sockfd, struct sockaddr *client, socklen_t *socklen) {
     /* TODO: Your code here. */
     // Reference: http://www.tcpipguide.com/free/t_TCPConnectionEstablishmentProcessTheThreeWayHandsh-3.htm
 
-    printf("Accepting sockfd:%d...\n", sockfd);
+    printf("FUNCTION: gbn_accept() %d...\n", sockfd);
 
     s.state = CLOSED;
 
@@ -236,39 +240,40 @@ int gbn_accept(int sockfd, struct sockaddr *client, socklen_t *socklen) {
     while (s.state != ESTABLISHED && s.state != RESET) { //TODO:  To check whether RESET is redundant
         switch (s.state) {
             case CLOSED:
-				printf("State: CLOSED\n");
+				printf("STATE: CLOSED\n");
                 // Check if receiving a valid SYN packet
-                if (recvfrom(sockfd, SYN_packet, sizeof(*SYN_packet), 0, client, socklen) != -1) {
-                    printf("Received NO error.\n");
-                    //printf("type: %d\tseqnum: %d\tchecksum(received)%d checksum(calculated): %d\n", SYN_packet->type, SYN_packet->seqnum, SYN_packet->checksum, checksum(SYN_packet));
+                if (recvfrom(sockfd, SYN_packet, sizeof(*SYN_packet), 0, client, socklen) != -1 ) {
+                    printf("SUCCESS: Received SYN\n");
+//                    printf("type: %d\tseqnum: %d\tchecksum(received)%d checksum(calculated): %d\n", SYN_packet->type, SYN_packet->seqnum, SYN_packet->checksum, checksum(SYN_packet));
                     if (SYN_packet->type == SYN && SYN_packet->checksum == checksum(SYN_packet)) {
                         // If a valid SYN is received
-                        printf("Received a valid SYN packet\n");
+                        printf("SUCCESS: Received a valid SYN packet\n");
                         s.seqnum = SYN_packet->seqnum + (uint8_t) 1;
                         s.state = SYN_RCVD;
                     } else {
                         // If a invalid SYN is received
-                        printf("Received an invalid SYN packet.\n");
+                        printf("ERROR: Received invalid SYN.\n");
                         s.state = CLOSED;
                     }
                 } else {
                     // If error is received
-                    printf("Received error.");
+                    printf("ERROR: Unable to receive SYN.\n");
                     s.state = CLOSED;
+					break;
                 }
                 break;
 
             case SYN_RCVD:
-				printf("State: SYN_RCVD\n");
+				printf("STATE: SYN_RCVD\n");
 				// Send SYNACK after a valid SYN is received
 
                 // Set SYNACK packet's Sequence number and Checksum
                 SYNACK_packet->seqnum = s.seqnum;
                 SYNACK_packet->checksum = checksum(SYNACK_packet);
 
-                if (max_handshake >= 4) {
+                if (max_handshake > 4) {
                     // If max handshake is reached, close the connection
-                    printf("Reached max handshakes. Closing connection...\n");
+                    printf("ERROR: Reached max handshakes. Closing connection...\n");
                     errno = 0;
                     s.state = CLOSED;
                     break;
@@ -278,39 +283,42 @@ int gbn_accept(int sockfd, struct sockaddr *client, socklen_t *socklen) {
                     break;
                 } else {
                     // If the SYNACK is sent successfully, waiting for ACK
-                    printf("Sent SYNACK successfully.\n");
-                    //printf("type: %d\tseqnum: %d\tchecksum(received)%d checksum(calculated): %d\n", SYN_packet->type, SYN_packet->seqnum, SYN_packet->checksum, checksum(SYN_packet));
+                    printf("SUCCESS: Sent SYNACK.\n");
 
                     // Use timeout and handshake counter to avoid lost ACK hanging the loop
                     alarm(TIMEOUT); // TODO To check whether it is necessary
                     max_handshake++;
 
                     if (recvfrom(sockfd, ACK_packet, sizeof(*ACK_packet), 0, client, socklen) == -1) {
-                        // If an ERROR is received
+						printf("type: %d\tseqnum: %d\tchecksum(received)%d checksum(calculated): %d\n", ACK_packet->type, ACK_packet->seqnum, ACK_packet->checksum, checksum(SYN_packet));
+
+						// If an ERROR is received
                         // if(errno != EINTR) {
                         // some problem other than timeout
-                        printf("Received an ERROR.");
+                        printf("ERROR: Unable to receive ACK .");
                         s.state = CLOSED;
                         break;
                         //}
                     } else if (ACK_packet->type == DATAACK && ACK_packet->checksum == checksum(ACK_packet)) {
                         // If a valid ACK is received, change to ESTABLISHED state
-                        printf("Accepted a valid ACK.");
+                        printf("SUCCESS: Accepted a valid ACK.");
                         s.state = ESTABLISHED;
                         s.address = *client;
                         s.sck_len = *socklen;
-                        printf("Changed state: SYN_RCVD => ESTABLISHED.\n");
+                        printf("STATE: ESTABLISHED.\n");
                         free(SYN_packet);
                         free(SYNACK_packet);
                         free(ACK_packet);
                         return sockfd;
                     }
-                }
+
+				}
                 break;
             default:
                 break;
         }
     }
+	return -1;
 }
 
 ssize_t maybe_sendto(int  s, const void *buf, size_t len, int flags, \
