@@ -64,6 +64,7 @@ enum {
 	ESTABLISHED,
 	FIN_SENT,
 	FIN_RCVD
+	RESET
 };
 
 extern state_t s;
