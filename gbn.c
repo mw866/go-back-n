@@ -201,18 +201,110 @@ int gbn_socket(int domain, int type, int protocol){
     int sockfd = socket(domain, type, protocol);
 
     // TODO: To implement timeout
-	printf("Creating socket.... socket_descriptor: %d\n", sockfd);
+	printf("Creat socket.... socket_descriptor: %d\n", sockfd);
 	return sockfd;
 }
 
-int gbn_accept(int sockfd, struct sockaddr *client, socklen_t *socklen){
+int gbn_accept(int sockfd, struct sockaddr *client, socklen_t *socklen) {
 
-	/* Done: Your code here. */
+    /* TODO: Your code here. */
+    // Reference: http://www.tcpipguide.com/free/t_TCPConnectionEstablishmentProcessTheThreeWayHandsh-3.htm
 
-	int new_sockfdfd = accept(sockfd, client, socklen);
-	printf("Accepted sockfd:%d created w_fd: %d\n", sockfd, new_sockfdfd);
-	return new_sockfdfd;
-}
+    printf("Accepting sockfd:%d \n", sockfd);
+
+    s.state = CLOSED;
+
+    // Intialize SYN packet
+    gbnhdr *SYN_packet = malloc(sizeof(*SYN_packet));
+    memset(SYN_packet->data, '\0', sizeof(SYN_packet->data));
+
+    // Initialize SYNACK packet
+    gbnhdr *SYNACK_packet = malloc(sizeof(*SYNACK_packet));
+    SYNACK_packet->type = SYNACK_packet;
+    memset(SYNACK_packet->data, '\0', sizeof(SYNACK_packet->data));
+
+    // Initialize the ACK packet
+    gbnhdr *ACK_packet = malloc(sizeof(*ACK_packet));
+
+    int max_handshake = 0; //TODO To change variable to alternative to attempts
+
+    // Constantly checking and acting on packet received
+    while (s.state != ESTABLISHED && s.state != RESET) { //TODO:  To check whether RESET is redundant
+        switch (s.state) {
+            case CLOSED:
+                // Check if receiving a valid SYN packet
+                if (recvfrom(sockfd, SYN_packet, sizeof(*SYN_packet), 0, client, socklen) != -1) {
+                    printf("Received NO error.");
+                    //printf("type: %d\tseqnum: %d\tchecksum(received)%d checksum(calculated): %d\n", SYN_packet->type, SYN_packet->seqnum, SYN_packet->checksum, checksum(SYN_packet));
+                    if (SYN_packet->type == SYN && SYN_packet->checksum == checksum(SYN_packet)) {
+                        // If a valid SYN is received
+                        printf("Received a valid SYN packet\n");
+                        s.seqnum = SYN_packet->seqnum + (uint8_t) 1;
+                        s.state = SYN_RCVD;
+                    } else {
+                        // If a invalid SYN is received
+                        printf("Received an invalid SYN packet.");
+                        s.state = CLOSED;
+                    }
+                } else {
+                    // If error is received
+                    printf("Received error.");
+                    s.state = CLOSED;
+                }
+                break;
+
+            case SYN_RCVD:
+                // Send SYNACK after a valid SYN is received
+
+                // Set SYNACK packet's Sequence number and Checksum
+                SYNACK_packet->seqnum = s.seqnum;
+                SYNACK_packet->checksum = checksum(SYNACK_packet);
+
+                if (max_handshake >= 4) {
+                    // If max handshake is reached, close the connection
+                    printf("Reached max handshakes. Closing connection...\n");
+                    errno = 0;
+                    s.state = CLOSED;
+                    break;
+                } else if(sendto(sockfd, SYNACK_packet, sizeof(*SYNACK_packet), 0, client, *socklen) == -1) {
+                    // If the SYNCACK is sent with error, close the connection
+                    s.state = CLOSED;
+                    break;
+                } else {
+                    // If the SYNACK is sent successfully, waiting for ACK
+                    printf("Sent SYNACK successfully.\n");
+                    //printf("type: %d\tseqnum: %d\tchecksum(received)%d checksum(calculated): %d\n", SYN_packet->type, SYN_packet->seqnum, SYN_packet->checksum, checksum(SYN_packet));
+
+                    // Use timeout and handshake counter to avoid lost ACK hanging the loop
+                    alarm(TIMEOUT); // TODO To check whether it is necessary
+                    max_handshake++;
+
+                    if (recvfrom(sockfd, ACK_packet, sizeof(*ACK_packet), 0, client, socklen) == -1) {
+                        // If an ERROR is received
+                        // if(errno != EINTR) {
+                        // some problem other than timeout
+                        printf("Received an ERROR.");
+                        s.state = CLOSED;
+                        break;
+                        //}
+                    } else if (ACK_packet->type == DATAACK && ACK_packet->checksum == checksum(ACK_packet)) {
+                        // If a valid ACK is received, change to ESTABLISHED state
+                        printf("Accepted a valid ACK.");
+                        s.state = ESTABLISHED;
+                        s.address = *client;
+                        s.sck_len = *socklen;
+                        printf("Changed state: SYN_RCVD => ESTABLISHED.\n");
+                        free(SYN_packet);
+                        free(SYNACK_packet);
+                        free(ACK_packet);
+                        return sockfd;
+                    }
+                }
+                break;
+            default:
+                break;
+        }
+    }
 
 ssize_t maybe_sendto(int  s, const void *buf, size_t len, int flags, \
                      const struct sockaddr *to, socklen_t tolen){
