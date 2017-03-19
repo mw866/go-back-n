@@ -18,19 +18,21 @@ state_t s;
 uint16_t checksum(gbnhdr *packet)
 {
     int nwords = (sizeof(packet->type) + sizeof(packet->seqnum) + sizeof(packet->data))/sizeof(uint16_t);
-    uint16_t buf[nwords];
-    buf[0] = (uint16_t)packet->seqnum + ((uint16_t)packet->type << 8);
+    uint16_t buf_array[nwords];
+    buf_array[0] = (uint16_t)packet->seqnum + ((uint16_t)packet->type << 8);
 
 	for (int byte_index = 1; byte_index <= sizeof(packet->data); byte_index++){
 		int word_index = (byte_index + 1) / 2;
 		if (byte_index % 2 == 1){
-			buf[word_index] = packet->data[byte_index-1];
+			buf_array[word_index] = packet->data[byte_index-1];
 		} else {
-			buf[word_index] = buf[word_index] << 8;
-			buf[word_index] += packet -> data[byte_index - 1];
+			buf_array[word_index] = buf_array[word_index] << 8;
+			buf_array[word_index] += packet -> data[byte_index - 1];
 		}
 
 	}
+
+    uint16_t *buf = buf_array;
 
 	uint32_t sum;
 	for (sum = 0; nwords > 0; nwords--)
@@ -105,6 +107,8 @@ int gbn_connect(int sockfd, const struct sockaddr *server, socklen_t socklen){
     while(s.state != CLOSED && s.state != RESET && s.state != ESTABLISHED){
 		switch(s.state){
 			case SYN_SENT:
+				printf("State: SYN_SENT\n");
+
 				//sending
 				if(max_handshake > 4){
 					printf("tried 4 times, closing current connection");
@@ -210,7 +214,7 @@ int gbn_accept(int sockfd, struct sockaddr *client, socklen_t *socklen) {
     /* TODO: Your code here. */
     // Reference: http://www.tcpipguide.com/free/t_TCPConnectionEstablishmentProcessTheThreeWayHandsh-3.htm
 
-    printf("Accepting sockfd:%d \n", sockfd);
+    printf("Accepting sockfd:%d...\n", sockfd);
 
     s.state = CLOSED;
 
@@ -220,7 +224,7 @@ int gbn_accept(int sockfd, struct sockaddr *client, socklen_t *socklen) {
 
     // Initialize SYNACK packet
     gbnhdr *SYNACK_packet = malloc(sizeof(*SYNACK_packet));
-    SYNACK_packet->type = SYNACK_packet;
+    SYNACK_packet->type = SYNACK;
     memset(SYNACK_packet->data, '\0', sizeof(SYNACK_packet->data));
 
     // Initialize the ACK packet
@@ -232,9 +236,10 @@ int gbn_accept(int sockfd, struct sockaddr *client, socklen_t *socklen) {
     while (s.state != ESTABLISHED && s.state != RESET) { //TODO:  To check whether RESET is redundant
         switch (s.state) {
             case CLOSED:
+				printf("State: CLOSED\n");
                 // Check if receiving a valid SYN packet
                 if (recvfrom(sockfd, SYN_packet, sizeof(*SYN_packet), 0, client, socklen) != -1) {
-                    printf("Received NO error.");
+                    printf("Received NO error.\n");
                     //printf("type: %d\tseqnum: %d\tchecksum(received)%d checksum(calculated): %d\n", SYN_packet->type, SYN_packet->seqnum, SYN_packet->checksum, checksum(SYN_packet));
                     if (SYN_packet->type == SYN && SYN_packet->checksum == checksum(SYN_packet)) {
                         // If a valid SYN is received
@@ -243,7 +248,7 @@ int gbn_accept(int sockfd, struct sockaddr *client, socklen_t *socklen) {
                         s.state = SYN_RCVD;
                     } else {
                         // If a invalid SYN is received
-                        printf("Received an invalid SYN packet.");
+                        printf("Received an invalid SYN packet.\n");
                         s.state = CLOSED;
                     }
                 } else {
@@ -254,7 +259,8 @@ int gbn_accept(int sockfd, struct sockaddr *client, socklen_t *socklen) {
                 break;
 
             case SYN_RCVD:
-                // Send SYNACK after a valid SYN is received
+				printf("State: SYN_RCVD\n");
+				// Send SYNACK after a valid SYN is received
 
                 // Set SYNACK packet's Sequence number and Checksum
                 SYNACK_packet->seqnum = s.seqnum;
@@ -266,7 +272,7 @@ int gbn_accept(int sockfd, struct sockaddr *client, socklen_t *socklen) {
                     errno = 0;
                     s.state = CLOSED;
                     break;
-                } else if(sendto(sockfd, SYNACK_packet, sizeof(*SYNACK_packet), 0, client, *socklen) == -1) {
+                } else if (sendto(sockfd, SYNACK_packet, sizeof(*SYNACK_packet), 0, client, *socklen) == -1) {
                     // If the SYNCACK is sent with error, close the connection
                     s.state = CLOSED;
                     break;
@@ -305,6 +311,7 @@ int gbn_accept(int sockfd, struct sockaddr *client, socklen_t *socklen) {
                 break;
         }
     }
+}
 
 ssize_t maybe_sendto(int  s, const void *buf, size_t len, int flags, \
                      const struct sockaddr *to, socklen_t tolen){
