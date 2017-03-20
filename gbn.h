@@ -53,8 +53,8 @@ typedef struct state_t{
     struct sockaddr address;
     socklen_t sck_len;
     uint8_t window_size;
-    bool fin;
-    bool fin_ack;
+    bool fin; // TODO To check if it is necessary
+    bool fin_ack; // TODO To check if it is necessary
 } state_t;
 
 enum {
@@ -82,9 +82,13 @@ ssize_t gbn_recv(int sockfd, void *buf, size_t len, int flags);
 ssize_t  maybe_sendto(int  s, const void *buf, size_t len, int flags, \
                       const struct sockaddr *to, socklen_t tolen);
 
+
+// Below are added in additon to the skeleton code
 //uint16_t checksum(uint16_t *buf, int nwords);
 uint16_t checksum(gbnhdr *packet);
+#define MIN(X, Y) ((X) < (Y) ? : (X) : (Y))
 
-
-
+#define MAX_ATTEMPTS      4 // The max attempts for gbn_connect(), gbn_accept(), gbn_send(), gbn_receive()
+#define DATALEN_BYTES     2 // The number of bytes used in DATA packet to represent the DATALEN
+#define MAX_WINDOW_SIZE	2
 #endif
