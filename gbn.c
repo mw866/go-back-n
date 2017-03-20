@@ -60,10 +60,86 @@ ssize_t gbn_send(int sockfd, const void *buf, size_t len, int flags){
 ssize_t gbn_recv(int sockfd, void *buf, size_t len, int flags){
 
 	/* TODO: Your code here. */
-	printf("FUNCTION: gbn_recv() %d...\n",sockfd);
-	int bytes_recved = recv(sockfd, buf, len, 0); // TODO: To change to UDP recvfrom() after testing
-//	printf("Received %d  bytes at sockfd %d \n", bytes_recved, sockfd);
-	return bytes_recved;
+    //data packet
+    gbnhdr *DATA_package = malloc(sizeof(*DATA_package));
+    memset(DATA_package->data, '\0', sizeof(DATA_package->data));
+
+    //ack packet
+    gbnhdr *ACK_package = malloc(sizeof(*ACK_package));
+    memset(ACK_package->data, '\0', sizeof(ACK_package->data));
+
+    struct sockaddr client;
+    socklen_t  client_len = sizeof(client);
+
+    size_t  data_len = 0;
+
+    bool is_newData = false;
+
+    int header_package = 2;
+
+    //keep reading data util get the limitation of the amount data
+    while(s.state == ESTABLISHED && !is_newData){
+        if(recvfrom(sockfd, DATA_package, sizeof(*DATA_package), 0, &client, &client_len) != -1){
+            printf("getting ....\n");
+            //if data type is FIN
+            if(DATA_package->type == FIN && DATA_package->checksum == checksum(DATA_package)){
+                printf("Receiving FIN...");
+                s.seqnum = DATA_package->seqnum + (uint8_t)1;
+                //update state
+                s.state = FIN_RCVD;
+            }else if(DATA_package->type == DATA && DATA_package->checksum == checksum(DATA_package)){
+                printf("Receiving DATA");
+                //if the seq number is expected, the data will be accepted and send ack back to the client
+                if(DATA_package->seqnum == s.seqnum){
+                    memcpy(&data_len, DATA_package->data, header_package);
+                    memcpy(buf, DATA_package->data+header_package, data_len);
+                    s.seqnum = DATA_package->seqnum + (uint8_t)1;
+                    is_newData = true;
+                    ACK_package->seqnum = s.seqnum;
+                    ACK_package->checksum = checksum(ACK_package);
+                    //if cannot ack in some reason, go to the CLOSED state
+                    if(maybe_sendto(sockfd, ACK_package, sizeof(*ACK_package), 0, &s.address, s.sck_len) == -1){
+                        printf("can't send DATA! %s\n", strerror((errno)));
+                        s.state = CLOSED;
+                        break;
+                    }
+                }else{
+                    //if the seq number is not expected, then send the duplicate ack
+                    printf("Got the wrong sequence number!\n");
+                    ACK_package->seqnum = s.seqnum;
+                    ACK_package->checksum = checksum(ACK_package);
+                    //if cannot ack in some reason, go to the CLOSED state
+                    if(maybe_sendto(sockfd, ACK_package, sizeof(*ACK_package), 0, &s.address, s.sck_len) == -1){
+                        printf("can't send DATA! %s\n", strerror((errno)));
+                        s.state = CLOSED;
+                        break;
+                    }
+
+                    printf("Sent Duplicate Ack(%d)\n", ACK_package->seqnum);
+
+                }
+
+            }
+
+        }else{
+            //if time out, try again
+            if(errno != EINTR){
+                //close in the end if other problem exists
+                s.state = CLOSED;
+            }
+        }
+    }
+
+    free(DATA_package);
+    free(ACK_package);
+    if(s.state != CLOSED){
+        return 0;
+    }else if (s.state  == ESTABLISHED){
+        return data_len;
+    }else{
+        return -1;
+    }
+
 }
 
 int gbn_close(int sockfd){
