@@ -86,7 +86,7 @@ ssize_t  maybe_sendto(int  s, const void *buf, size_t len, int flags, \
 // Below are added in additon to the skeleton code
 //uint16_t checksum(uint16_t *buf, int nwords);
 uint16_t checksum(gbnhdr *packet);
-#define MIN(X, Y) ((X) < (Y) ? : (X) : (Y))
+//#define MIN(X, Y)       ((X) < (Y) ? : (X) : (Y))
 
 #define MAX_ATTEMPTS      4 // The max attempts for gbn_connect(), gbn_accept(), gbn_send(), gbn_receive()
 #define DATALEN_BYTES     2 // The number of bytes used in DATA packet to represent the DATALEN
