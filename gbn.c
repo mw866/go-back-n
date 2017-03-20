@@ -181,7 +181,7 @@ int gbn_connect(int sockfd, const struct sockaddr *server, socklen_t socklen){
     int max_handshake = 0;
 
 	//try handshake until the state is reset, established or closed
-	//the max try times is 6
+	//the max try times is 4 if over the limitation, close state
     while(s.state != CLOSED && s.state != RESET && s.state != ESTABLISHED){
 		switch(s.state){
 			case SYN_SENT:
