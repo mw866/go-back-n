@@ -61,6 +61,12 @@ ssize_t gbn_send(int sockfd, const void *buf, size_t len, int flags){
     DATA_packet->type = DATA;
     memset(DATA_packet->data, '\0', sizeof(DATA_packet->data));
 
+
+    // Initialize ACKSYNACK packet
+    gbnhdr *ACKSYNACK_packet = malloc(sizeof(*ACKSYNACK_packet));
+    ACKSYNACK_packet->type = DATAACK;
+    memset(ACKSYNACK_packet->data, '\0', sizeof(ACKSYNACK_packet->data));
+
     // Initialize the ACK packet
     gbnhdr *ACK_packet = malloc(sizeof(*ACK_packet));
     memset(ACK_packet->data, '\0', sizeof(ACK_packet->data));
@@ -141,10 +147,10 @@ ssize_t gbn_send(int sockfd, const void *buf, size_t len, int flags){
                             printf("ERROR: Timeout when receiving ACK.\n");
                             // If time out, lower the window size and start sending DATA_packet again
                             if (s.window_size > 1) {
-                                s.window_size--;
+                                s.window_size/=2;
                                 printf("SUCCESS: Changed window size to: %d\n", s.window_size);
-                                break;
                             }
+                            break;
                         }
                     } else {
                         // If received ACK packet successfully
@@ -170,7 +176,7 @@ ssize_t gbn_send(int sockfd, const void *buf, size_t len, int flags){
                                 alarm(TIMEOUT);
                             }
                             if (s.window_size < MAX_WINDOW_SIZE) {
-                                s.window_size++;
+                                s.window_size;
                                 printf("Raised window size to %d\n", s.window_size);
                             }
                         } else if (ACK_packet->type == FIN && ACK_packet->checksum == checksum(ACK_packet)) {
@@ -180,6 +186,17 @@ ssize_t gbn_send(int sockfd, const void *buf, size_t len, int flags){
                             s.state = FIN_RCVD;
                             alarm(0);
                             break;
+                        }else if(ACK_packet->type == SYNACK && ACK_packet->checksum == checksum(ACK_packet)) {
+                            printf("SUCCESS: Received valid SYNACK packet.\n");
+                            ACKSYNACK_packet->seqnum = s.seqnum;
+                            ACKSYNACK_packet->checksum = checksum(ACKSYNACK_packet);
+                            if (maybe_sendto(sockfd, ACKSYNACK_packet, sizeof(*ACKSYNACK_packet), 0, &s.address,
+                                             s.sck_len) == -1) {
+                                // can't send for some other reason, bail
+                                printf("Couldn't send ACK! %s\n", strerror(errno));
+                                s.state = CLOSED;
+                                break;
+                            }
                         }
                     }
                 }
