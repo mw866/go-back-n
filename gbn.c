@@ -2,6 +2,7 @@
 #include "gbn.h"
 
 state_t s;
+volatile sig_atomic_t timeout_flag = false;
 
 //uint16_t checksum(uint16_t *buf, int nwords)
 //{
@@ -40,6 +41,10 @@ uint16_t checksum(gbnhdr *packet)
 	sum = (sum >> 16) + (sum & 0xffff);
 	sum += (sum >> 16);
 	return ~sum;
+}
+
+void timeout(int s){
+    timeout_flag = true;
 }
 
 ssize_t gbn_send(int sockfd, const void *buf, size_t len, int flags){
@@ -454,9 +459,15 @@ int gbn_socket(int domain, int type, int protocol){
     s.fin = false;
     s.fin_ack = false;
 
+    s.window_size = 1;
+
+    //TODO: improve timeout signal
+
+    signal(SIGALRM, timeout);
+    siginterrupt(SIGALRM, 1);
+
     int sockfd = socket(domain, type, protocol);
 
-    // TODO: To implement timeout
 	printf("Create socket.... socket_descriptor: %d\n", sockfd);
 	return sockfd;
 }
