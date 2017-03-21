@@ -47,7 +47,7 @@ typedef struct {
 
 typedef struct state_t{
 
-	/* TODO: Your state information could be encoded here. */
+	/* TODO: Your state isnformation could be encoded here. */
     int state;
     uint8_t seqnum;
     struct sockaddr address;
@@ -64,6 +64,7 @@ enum {
 	ESTABLISHED,
 	FIN_SENT,
 	FIN_RCVD,
+	FIN_WAIT,
 	RESET // TODO Not in skeleton code. To check if it is necessary.
 };
 
