@@ -406,9 +406,8 @@ int gbn_connect(int sockfd, const struct sockaddr *server, socklen_t socklen){
 							break;
 						}
 					}
-					break;
-
-				}
+                }
+                break;
 			default:
 				break;
 
