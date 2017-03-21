@@ -2,19 +2,6 @@
 #include "gbn.h"
 
 state_t s;
-volatile sig_atomic_t timeout_flag = false;
-
-//uint16_t checksum(uint16_t *buf, int nwords)
-//{
-//	uint32_t sum;
-//
-//	for (sum = 0; nwords > 0; nwords--)
-//		sum += *buf++;
-//	sum = (sum >> 16) + (sum & 0xffff);
-//	sum += (sum >> 16);
-//	return ~sum;
-//}
-
 
 uint16_t checksum(gbnhdr *packet)
 {
@@ -43,9 +30,7 @@ uint16_t checksum(gbnhdr *packet)
 	return ~sum;
 }
 
-void timeout(int s){
-    timeout_flag = true;
-}
+
 
 ssize_t gbn_send(int sockfd, const void *buf, size_t len, int flags){
 	
@@ -81,26 +66,28 @@ ssize_t gbn_send(int sockfd, const void *buf, size_t len, int flags){
     socklen_t client_socklen = sizeof(client_sockaddr);
 
     // TODO To optimize, if possible
-    int UNACKed_packets_num = 0;
+    int UNACKed_packets_counter = 0;
     size_t DATA_offset = 0;
 
     while (len > 0) {
         switch (s.state) {
             case ESTABLISHED:
 //                printf("STATE: ESTABLISHED\n");
-                UNACKed_packets_num = 0;
+                UNACKed_packets_counter = 0;
                 DATA_offset = 0;
-                for (int DATA_packet_index = 0; DATA_packet_index < s.window_size; DATA_packet_index++) {
-                    size_t DATA_len_remained = len - (DATALEN - DATALEN_BYTES)*DATA_packet_index;
+
+                // Sending DATA packets
+                for (int DATA_packet_counter = 0; DATA_packet_counter < s.window_size; DATA_packet_counter++) {
+                    size_t DATA_len_remained = len - (DATALEN - DATALEN_BYTES)*DATA_packet_counter;
                     if (DATA_len_remained > 0) {
                         // If DATA remained to be sent
                         printf("INFO: DATA length of %d packets left to be sent...\n", DATA_len_remained);
                         // Assign Sequence Number to DATA packet
-                        DATA_packet->seqnum = s.seqnum + (uint8_t)DATA_packet_index;
+                        DATA_packet->seqnum = s.seqnum + (uint8_t)DATA_packet_counter;
                         memset(DATA_packet->data, '\0', sizeof(DATA_packet->data)); //TODO To delete if duplicate from initialization
 
                         // Calculate the DATA payload size to be sent
-                        //size_t DATA_len_remained = len - (DATALEN - DATALEN_BYTES)*DATA_packet_index;
+                        //size_t DATA_len_remained = len - (DATALEN - DATALEN_BYTES)*DATA_packet_counter;
                         size_t DATA_len_max = DATALEN - DATALEN_BYTES;
                         size_t DATA_len = (DATA_len_remained < DATA_len_max) ? DATA_len_remained : DATA_len_max;
 
@@ -122,24 +109,23 @@ ssize_t gbn_send(int sockfd, const void *buf, size_t len, int flags){
                             printf("ERROR: Unable to send DATA packet.\n");
                             s.state = CLOSED;
                             break;
-                        }
-                        else {
+                        } else {
                             // If successfully sent a DATA packet
                             printf("SUCCESS: Sent DATA packet (%d)...\n", DATA_packet->seqnum);
                             printf("type: %d\t%dseqnum: %d\tchecksum(received): %d\tchecksum(calculated): \n", DATA_packet->type, DATA_packet->seqnum, DATA_packet->checksum, checksum(DATA_packet));
 
-                        if (DATA_packet_index == 0) {
-                            // If first packet, set time out before FIN
-                            alarm(TIMEOUT);
-                        }
-                            UNACKed_packets_num++;
+                            if (DATA_packet_counter == 0) {
+                                // If first packet, set time out before FIN
+                                alarm(TIMEOUT);
+                            }
+                            UNACKed_packets_counter++;
                         }
                     }
                 }
                 attempts++;
 
-
-                while (UNACKed_packets_num > 0) {
+                // Process ACK received
+                while (UNACKed_packets_counter > 0) {
                     if (recvfrom(sockfd, ACK_packet, sizeof(*ACK_packet), 0, &client_sockaddr, &client_socklen) == -1) {
                         // If error in receiving ACK packet
                         printf("ERROR: Unable to receive ACK!\n");
@@ -150,7 +136,7 @@ ssize_t gbn_send(int sockfd, const void *buf, size_t len, int flags){
                             break;
                         } else {
                             printf("ERROR: Timeout when receiving ACK.\n");
-                            // If time out, lower the window size and start sending DATA_packet again
+                            // If time out, half the window size and start sending DATA_packet again
                             if (s.window_size>1) {
                                 printf("INFO: Window size is: %d\n", s.window_size);
                                 s.window_size/=2;
@@ -160,10 +146,10 @@ ssize_t gbn_send(int sockfd, const void *buf, size_t len, int flags){
                         }
                     } else {
                         // If received ACK packet successfully
-                        printf("SUCCESS: Received a ACK packet.\n");
+                        printf("SUCCESS: Received ACK packet.\n");
                         if (ACK_packet->type == DATAACK && ACK_packet->checksum == checksum(ACK_packet)) {
-                            // If an valid ACK packet is received, update sequence number and amount of DATA_packet sent
-                            printf("SUCCESS: Received valid ACK(%d).\n", (ACK_packet->seqnum));
+                            // If an valid DATAACK packet is received, update sequence number and amount of DATA_packet sent
+                            printf("SUCCESS: Received valid DATAACK(%d).\n", (ACK_packet->seqnum));
                             int seqnum_difference = (int)ACK_packet->seqnum - (int)s.seqnum;
                             seqnum_difference =  (seqnum_difference < 0)?  seqnum_difference+256: seqnum_difference;
                             size_t ACKed_packets_num = (size_t)seqnum_difference;
@@ -175,15 +161,12 @@ ssize_t gbn_send(int sockfd, const void *buf, size_t len, int flags){
                             len -= dataSent_;
                             data_sent += dataSent_;
                             attempts = 0;
-                            UNACKed_packets_num -= ACKed_packets_num;
-                            if (UNACKed_packets_num == 0) {
-                                alarm(0);
-                            } else {
-                                alarm(TIMEOUT);
-                            }
+                            UNACKed_packets_counter -= ACKed_packets_num;
+                            (UNACKed_packets_counter == 0) ? alarm(0): alarm(TIMEOUT);
+
                             if (s.window_size < MAX_WINDOW_SIZE) {
-                                s.window_size;
-                                printf("Raised window size to %d\n", s.window_size);
+                                s.window_size ++;
+                                printf("INFO: Window size is changed to %d\n", s.window_size);
                             }
                         } else if (ACK_packet->type == FIN && ACK_packet->checksum == checksum(ACK_packet)) {
                             // connection closed from other end
@@ -199,12 +182,12 @@ ssize_t gbn_send(int sockfd, const void *buf, size_t len, int flags){
                             if (maybe_sendto(sockfd, ACKSYNACK_packet, sizeof(*ACKSYNACK_packet), 0, &s.address,
                                              s.sck_len) == -1) {
                                 // can't send for some other reason, bail
-                                printf("ERROR: Unable to send ACK.\n");
+                                printf("ERROR: Unable to send SYNACK.\n");
                                 s.state = CLOSED;
                                 break;
                             }
                             else {
-                                printf("SUCCESS: Sent ACK.\n");
+                                printf("SUCCESS: Sent SYNACK.\n");
 
                             }
                         }
@@ -233,90 +216,72 @@ ssize_t gbn_recv(int sockfd, void *buf, size_t len, int flags){
 
 	/* TODO: Your code here. */
     printf("FUNCTION: gbn_recv()\n");
-    //data packet
-    gbnhdr *DATA_package = malloc(sizeof(*DATA_package));
-    memset(DATA_package->data, '\0', sizeof(DATA_package->data));
+    //Intialize DATA packet
+    gbnhdr *DATA_packet = malloc(sizeof(*DATA_packet));
+    memset(DATA_packet->data, '\0', sizeof(DATA_packet->data));
 
-    //ack packet
-    gbnhdr *ACK_package = malloc(sizeof(*ACK_package));
-    memset(ACK_package->data, '\0', sizeof(ACK_package->data));
+    //Intialize ACK packet
+    gbnhdr *ACK_packet = malloc(sizeof(*ACK_packet));
+    memset(ACK_packet->data, '\0', sizeof(ACK_packet->data));
 
-    struct sockaddr client;
-    socklen_t  client_len = sizeof(client);
+    struct sockaddr client_addr;
+    socklen_t client_len = sizeof(client_addr);
+    size_t data_len = 0;
+    bool is_new_data = false;
 
-    size_t  data_len = 0;
-
-    bool is_newData = false;
-
-    int header_package = 2; // TODO TO use const in header
-
-    //keep reading data util get the limitation of the amount data
-    while(s.state == ESTABLISHED && !is_newData){
-        printf("INFO: keep reading data util get the limitation of the amount data\n");
-        if(recvfrom(sockfd, DATA_package, sizeof(*DATA_package), 0, &client, &client_len) != -1){
+    while(s.state == ESTABLISHED && !is_new_data){
+        printf("INFO: keep reading data until no more new data to be received.\n");
+        if(recvfrom(sockfd, DATA_packet, sizeof(*DATA_packet), 0, &client_addr, &client_len) != -1){
             printf("SUCCESS: Received a packet.\n");
-            //if data type is FIN
-            if(DATA_package->type == FIN && DATA_package->checksum == checksum(DATA_package)){
-                printf("SUCCESS: Received a valid FIN packet\n");
-                s.seqnum = DATA_package->seqnum + (uint8_t)1;
-                //update state
+            if(DATA_packet->type == FIN && DATA_packet->checksum == checksum(DATA_packet)){
+                printf("SUCCESS: Received a valid FIN packet.\n");
                 s.state = FIN_RCVD;
-            }else if(DATA_package->type == DATA && DATA_package->checksum == checksum(DATA_package)){
-                printf("SUCCESS: Receiving a valid DATA packet\n");
-                if(DATA_package->seqnum == s.seqnum){
-                    //if the seq number is expected, the data will be accepted and send ack back to the client
-                    printf("SUCCESS: DATA packet has the expected sequene number.\n");
-                    memcpy(&data_len, DATA_package->data, header_package);
-                    memcpy(buf, DATA_package->data+header_package, data_len);
-                    s.seqnum = DATA_package->seqnum + (uint8_t)1;
-                    is_newData = true;
-                    ACK_package->seqnum = s.seqnum;
-                    ACK_package->checksum = checksum(ACK_package);
-                    //if cannot ack in some reason, go to the CLOSED state
-                    if(maybe_sendto(sockfd, ACK_package, sizeof(*ACK_package), 0, &s.address, s.sck_len) == -1){
-                        printf("ERROR: Unable to send ACK packet. %s\n", strerror((errno)));
-                        s.state = CLOSED;
-                        break;
+                s.seqnum = DATA_packet->seqnum + (uint8_t)1;
+            }else {
+                if(DATA_packet->type == DATA && DATA_packet->checksum == checksum(DATA_packet)){
+                    printf("SUCCESS: Receiving a valid DATA packet\n");
+                    if(DATA_packet->seqnum == s.seqnum){
+                        //if the seqnum is expected, the data will be accepted and send ACK back
+                        printf("SUCCESS: DATA packet has the correct sequence number.\n");
+                        memcpy(&data_len, DATA_packet->data, DATALEN_BYTES); // Write data_len in the first DATALEN_BYTES bytes in the data field.
+                        memcpy(buf, DATA_packet->data+DATALEN_BYTES, data_len); // Write received buffer in the remaining bytes in the data field.
+                        s.seqnum = DATA_packet->seqnum + (uint8_t)1;
+                        is_new_data = true;
+                        ACK_packet->seqnum = s.seqnum;
+                        ACK_packet->checksum = checksum(ACK_packet);
+                    }else {
+                        //if the seq number is not expected, then send the duplicate ack
+                        printf("INFO: DATA packet has the incorrect sequence number.\n");
+                        ACK_packet->seqnum = s.seqnum;
+                        ACK_packet->checksum = checksum(ACK_packet);
                     }
-                }else{
-                    //if the seq number is not expected, then send the duplicate ack
-                    printf("ERROR: DATA packet has the un-expected sequence number.\n");
-                    ACK_package->seqnum = s.seqnum;
-                    ACK_package->checksum = checksum(ACK_package);
-                    //if cannot ack in some reason, go to the CLOSED state
-                    // TODO To check the possiblity to de-duplicate the following block
-                    if(maybe_sendto(sockfd, ACK_package, sizeof(*ACK_package), 0, &s.address, s.sck_len) == -1){
-                        printf("ERROR: Unable to send ACK packet. %s\n", strerror((errno)));
+                    // Regardless of the sequence, send the ACK
+                    if (maybe_sendto(sockfd, ACK_packet, sizeof(*ACK_packet), 0, &s.address, s.sck_len) == -1) {
+                        printf("ERROR: Unable to send ACK packet.\n");
                         s.state = CLOSED;
                         break;
                     } else {
-                        printf("SUCCESS: Sent duplicate ACK packet(%d).\n", ACK_package->seqnum);
+                        printf("SUCCESS: Sent duplicate ACK packet.\n");
                     }
                 }
-
             }
-
         }else{
             //if time out, try again
             printf("ERROR: Unable to receive a packet.\n");
             if(errno != EINTR){
-                printf("ERROR: Other reasons than timeout.");
+                printf("ERROR: Other reasons than timeout.\n");
                 //close in the end if other problem exists
                 s.state = CLOSED;
             }
         }
     }
-
-    free(DATA_package);
-    free(ACK_package);
-    if(s.state != CLOSED){
-        return 0;
-    }else if (s.state  == ESTABLISHED){
-        return data_len;
-    }else{
-        return -1;
+    free(DATA_packet);
+    free(ACK_packet);
+    switch (s.state){
+        case CLOSED: return 0;
+        case ESTABLISHED: return data_len;
+        default: return -1;
     }
-
 }
 
 int gbn_close(int sockfd){
@@ -351,7 +316,6 @@ int gbn_connect(int sockfd, const struct sockaddr *server, socklen_t socklen){
 	gbnhdr *ACK_packet = malloc(sizeof(*ACK_packet));
 	ACK_packet->type = DATAACK;
 	memset(ACK_packet->data, '\0', sizeof(ACK_packet->data));
-
 
 	//max handshake could be tried
     int max_handshake = 0;
@@ -414,11 +378,8 @@ int gbn_connect(int sockfd, const struct sockaddr *server, socklen_t socklen){
                 break;
 			default:
 				break;
-
 		}
     }
-
-
 	free(SYN_packet);
 	free(SYN_ACK_packet);
 	free(ACK_packet);
@@ -439,7 +400,14 @@ int gbn_bind(int sockfd, const struct sockaddr *server, socklen_t socklen){
 	/* Done: Your code here. */
 	printf("FUNCTION: gbn_bind() %d...\n", sockfd);
     return bind(sockfd, server, socklen);
-}	
+}
+
+// http://www.informit.com/articles/article.aspx?p=2204014
+volatile sig_atomic_t e_flag = false;
+
+void timeout_handler(int signum) {
+    e_flag = 1;
+}
 
 int gbn_socket(int domain, int type, int protocol){
 		
@@ -458,7 +426,7 @@ int gbn_socket(int domain, int type, int protocol){
 
     //TODO: improve timeout signal
 
-    signal(SIGALRM, timeout);
+    signal(SIGALRM, timeout_handler);
     siginterrupt(SIGALRM, 1);
 
     int sockfd = socket(domain, type, protocol);
@@ -544,7 +512,7 @@ int gbn_accept(int sockfd, struct sockaddr *client, socklen_t *socklen) {
                     max_handshake++;
 
                     if (recvfrom(sockfd, ACK_packet, sizeof(*ACK_packet), 0, client, socklen) == -1) {
-						printf("type: %d\tseqnum: %d\tchecksum(received)%d checksum(calculated): %d\n", ACK_packet->type, ACK_packet->seqnum, ACK_packet->checksum, checksum(SYN_packet));
+						//printf("type: %d\tseqnum: %d\tchecksum(received)%d checksum(calculated): %d\n", ACK_packet->type, ACK_packet->seqnum, ACK_packet->checksum, checksum(ACK_packet));
 
 						// If an ERROR is received
                          if(errno != EINTR) {
