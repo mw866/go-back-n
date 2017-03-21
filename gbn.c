@@ -226,14 +226,7 @@ ssize_t gbn_send(int sockfd, const void *buf, size_t len, int flags){
     }
     free(DATA_packet);
     free(ACK_packet);
-    if (s.state == ESTABLISHED) {
-        printf("FUNCTION: Exit gbn_send() with data_sent. \n");
-        return data_sent;
-    } else {
-        printf("FUNCTION: Exit gbn_send() with -1.\n");
-        return -1;
-    }
-
+    return (s.state == ESTABLISHED) ? data_sent: -1;
 }
 
 ssize_t gbn_recv(int sockfd, void *buf, size_t len, int flags){
@@ -429,12 +422,8 @@ int gbn_connect(int sockfd, const struct sockaddr *server, socklen_t socklen){
 	free(SYN_packet);
 	free(SYN_ACK_packet);
 	free(ACK_packet);
-	if(s.state == ESTABLISHED){
-		printf("STATE: ESTABLISHED \n");
-		return 0;
-	}else {
-		return -1;
-	}
+	return (s.state == ESTABLISHED)? 0 : -1;
+
 }
 
 int gbn_listen(int sockfd, int backlog){
