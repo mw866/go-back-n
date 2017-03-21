@@ -321,9 +321,95 @@ ssize_t gbn_recv(int sockfd, void *buf, size_t len, int flags){
 
 int gbn_close(int sockfd){
 
-	/* TODO: Your code here. */
-	printf("FUNCTION: gbn_close() %d...\n", sockfd);
-    return close(sockfd);
+    struct sockaddr_in from;
+    socklen_t fromlen = sizeof(from);
+    int max_try = 0;
+
+    //fin package
+    gbnhdr *sendFin_package = malloc(sizeof(*sendFin_package));
+    sendFin_package->type = FIN;
+    memset(sendFin_package->data, '\0', sizeof(sendFin_package->data));
+
+    //finack packet
+    gbnhdr *sendFinack_package = malloc(sizeof(*sendFin_package));
+    sendFinack_package->type = FINACK;
+    memset(sendFinack_package->data, '\0', sizeof(sendFinack_package->data));
+
+    //receive fin package
+    gbnhdr *recvFin_package = malloc(sizeof(*recvFin_package));
+    memset(recvFin_package->data, '\0', sizeof(recvFin_package->data));
+
+    //receive fin ack package
+    gbnhdr *recvFinack_package = malloc(sizeof(*recvFinack_package));
+    memset(recvFin_package->data, '\0', sizeof(recvFin_package->data));
+
+
+    while(s.state != CLOSED && s.state != RESET){
+        switch (s.state){
+            //receive finack, update state established
+            case ESTABLISHED:
+                if(sendto(sockfd, sendFin_package, sizeof(*sendFin_package), 0, &s.address, s.sck_len) == -1){
+                    printf("ERROR: send Fin fail, max try: %d !! %s\n", max_try++, strerror(errno));
+                    s.state = CLOSED;
+                }else{
+                    printf("ERROR: max tries, change state to close. Time out: %d\n", TIMEOUT);
+                    errno = 0;
+                    s.state = CLOSED;
+                    break;
+                }
+
+                if(recvfrom(sockfd, recvFin_package, sizeof(*recvFin_package), 0, &from, &fromlen) == -1){
+                    //timeouf try one more time
+                    if(errno != EINTR){
+                        s.state = CLOSED;
+                        printf("some problem comes");
+                    }else{
+                        printf("INFO: Timeout");
+                    }
+                }else{
+                    printf("SUCCESS: Reived FIN packet...");
+                    if(recvFin_package == FINACK && recvFin_package->checksum == checksum(recvFin_package)){
+                        alarm(0);
+                        s.state = FIN_WAIT;
+                        s.seqnum = recvFin_package->seqnum+(uint8_t)1;
+                    }
+                }
+                break;
+
+            case FIN_WAIT:
+                //signal(SIGALRM, __WAIT_INT());
+                alarm(2*TIMEOUT);
+                if(recvfrom(sockfd, recvFin_package, sizeof(*recvFin_package), 0, &from, &fromlen) == -1){
+                    //if time out , try again
+                    if(errno != EINTR){
+                        printf("ERROR: some problem with receive %s\n", strerror(errno));
+                    }else{
+                        printf("ERROR: FIN_WAIT time out, state change to close");
+                    }
+                    s.state = CLOSED;
+                }else{
+                    printf("SUCCESS: Received FIn packet something...\n");
+                    if(recvFin_package->type == FIN && recvFin_package->checksum == checksum(recvFin_package)){
+                        s.seqnum = recvFin_package->seqnum + (uint8_t)1;
+                        s.state = ESTABLISHED;
+                    }
+
+                }
+                break;
+            default:
+                break;
+
+        }
+    }
+
+    free(sendFin_package);
+    free(sendFinack_package);
+    free(recvFin_package);
+    free(recvFinack_package);
+
+    return(s.state == CLOSED ? close(sockfd) : -1);
+
+
 }
 
 int gbn_connect(int sockfd, const struct sockaddr *server, socklen_t socklen){
