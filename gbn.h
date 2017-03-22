@@ -65,7 +65,6 @@ enum {
 	FIN_SENT,
 	FIN_RCVD,
 	FIN_WAIT,
-	RESET // TODO Not in skeleton code. To check if it is necessary.
 };
 
 extern state_t s;

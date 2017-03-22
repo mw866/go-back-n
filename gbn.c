@@ -34,7 +34,7 @@ uint16_t checksum(gbnhdr *packet)
 
 ssize_t gbn_send(int sockfd, const void *buf, size_t len, int flags){
 	
-	/* TODO: Your code here. */
+	/* Done: Your code here. */
 
 	/* Hint: Check the DATA_packet length field 'len'.
 	 *       If it is > DATALEN, you will have to split the DATA_packet
@@ -45,7 +45,6 @@ ssize_t gbn_send(int sockfd, const void *buf, size_t len, int flags){
     int attempts = 0;
     size_t data_sent = 0;
 
-    // TODO To check if it is possibel to have a reusable module for this
     // Initialize the DATA packet
     gbnhdr *DATA_packet = malloc(sizeof(*DATA_packet));
     DATA_packet->type = DATA;
@@ -65,7 +64,6 @@ ssize_t gbn_send(int sockfd, const void *buf, size_t len, int flags){
     struct sockaddr client_sockaddr;
     socklen_t client_socklen = sizeof(client_sockaddr);
 
-    // TODO To optimize, if possible
     int UNACKed_packets_counter = 0;
     size_t DATA_offset = 0;
 
@@ -214,7 +212,7 @@ ssize_t gbn_send(int sockfd, const void *buf, size_t len, int flags){
 
 ssize_t gbn_recv(int sockfd, void *buf, size_t len, int flags){
 
-	/* TODO: Your code here. */
+	/* DOne: Your code here. */
     printf("FUNCTION: gbn_recv()\n");
     //Intialize DATA packet
     gbnhdr *DATA_packet = malloc(sizeof(*DATA_packet));
@@ -309,7 +307,7 @@ int gbn_close(int sockfd){
     memset(recvFin_package->data, '\0', sizeof(recvFin_package->data));
 
 
-    while(s.state != CLOSED && s.state != RESET){
+    while(s.state != CLOSED ){
         switch (s.state){
             //receive finack, update state established
             case ESTABLISHED:
@@ -406,9 +404,7 @@ int gbn_connect(int sockfd, const struct sockaddr *server, socklen_t socklen){
 	//max handshake could be tried
     int max_handshake = 0;
 
-	//try handshake until the state is reset, established or closed
-	//the max try times is 4 if over the limitation, close state
-    while(s.state != CLOSED && s.state != RESET && s.state != ESTABLISHED){
+    while(s.state != CLOSED && s.state != ESTABLISHED){
 		switch(s.state){
 			case SYN_SENT:
 				printf("STATE: SYN_SENT\n");
@@ -510,9 +506,11 @@ int gbn_socket(int domain, int type, int protocol){
 
     s.window_size = 1;
 
-    //TODO: improve timeout signal
-
     signal(SIGALRM, timeout_handler);
+
+    // The siginterrupt() function changes the restart behavior when a system call is interrupted by the signal sig.
+    // If the flag argument is true (1) and data transfer has started,
+    // then the system call will be interrupted and will return the actual amount of data transferred.
     siginterrupt(SIGALRM, 1);
 
     int sockfd = socket(domain, type, protocol);
@@ -523,7 +521,7 @@ int gbn_socket(int domain, int type, int protocol){
 
 int gbn_accept(int sockfd, struct sockaddr *client, socklen_t *socklen) {
 
-    /* TODO: Your code here. */
+    /* Done: Your code here. */
     // Reference: http://www.tcpipguide.com/free/t_TCPConnectionEstablishmentProcessTheThreeWayHandsh-3.htm
 
     printf("FUNCTION: gbn_accept() %d...\n", sockfd);
@@ -545,7 +543,7 @@ int gbn_accept(int sockfd, struct sockaddr *client, socklen_t *socklen) {
     int max_handshake = 0; //TODO To change variable to alternative to attempts
 
     // Constantly checking and acting on packet received
-    while (s.state != ESTABLISHED && s.state != RESET) { //TODO:  To check whether RESET is redundant
+    while (s.state != ESTABLISHED) {
         switch (s.state) {
             case CLOSED:
 				printf("STATE: CLOSED\n");
@@ -594,7 +592,7 @@ int gbn_accept(int sockfd, struct sockaddr *client, socklen_t *socklen) {
                     printf("SUCCESS: Sent SYNACK.\n");
 
                     // Use timeout and handshake counter to avoid lost ACK hanging the loop
-                    alarm(TIMEOUT); // TODO To check whether it is necessary
+                    alarm(TIMEOUT);
                     max_handshake++;
 
                     if (recvfrom(sockfd, ACK_packet, sizeof(*ACK_packet), 0, client, socklen) == -1) {
