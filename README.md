@@ -12,7 +12,7 @@ First, the connection is set up with a 3-way handshake between the sender and re
 
 It is implemented on the **sender**  in `gbn_connect()`  and  on the **receiver** in `gbn_accept()`.
 
-![](images/connection_setup.jpg)
+![](https://raw.githubusercontent.com/mw866/go-back-n/master/images/connection_setup.JPG)
 
 ### Data Transmission
 
@@ -20,7 +20,7 @@ Once the connection is established, the data is sent in DATA packets by the **se
 
 The design is illustrated in the diagram below.
 
-![](images/data_transmission.jpg)
+![](https://raw.githubusercontent.com/mw866/go-back-n/master/images/data_transmission.JPG)
 
 ### Connection Teardown
 
@@ -28,13 +28,13 @@ One the data transmission is completed, the connection is torn down by both send
 
 The design is illustrated in the diagram below.
 
-![](images/connection_teardown.jpg)
+![](https://raw.githubusercontent.com/mw866/go-back-n/master/images/connection_teardown.JPG)
 
 ## The tricky parts of the implementation
 
 The most tricky part of the implementation is figuring out the logic for the the `gbn_sender()` and `gbn_receiver()`. 
 We tackled this by relying on the Finite State Machine (FSM) as below:
-![](images/gbn-fsm.jpg)
+![](https://raw.githubusercontent.com/mw866/go-back-n/master/images/gbn-fsm.JPG)
 
 ## Known Issues
 
