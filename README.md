@@ -1,5 +1,8 @@
-## Usage
+# Go-back-N Protocol
 
+A TCP-like Go-back-n protocol using UDP-socket API.
+
+## Usage
 
 * SSH into Docker: `ssh -p 3022 root@127.0.0.1`
 
